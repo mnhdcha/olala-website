@@ -46,3 +46,15 @@
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
 }
+
+
+/* Vietnamese font rendering fix */
+html,body,button,input,textarea,select{
+ font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;
+ text-rendering:optimizeLegibility;
+ -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit}
+.hero h1 em,.reviewTrack p,.storyArt span{
+ font-family:Georgia,"Times New Roman",serif;
+}
