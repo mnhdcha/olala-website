@@ -11,11 +11,13 @@ const products=[
 ];
 const money=(n:number)=>new Intl.NumberFormat("vi-VN").format(n)+"đ";
 const toppingPrices:Record<string,number>={"Trân châu trắng":8000,"Thạch đào":8000,"Hạt chia":6000,"Kem muối":10000};
+const ORDER_API="https://script.google.com/macros/s/AKfycbyNniP4cUpAMFuBppX2hzWA2OnbQnr3ykjyMFxAqBNYSzNHlJam9g2u1n5yzqRCpJnacg/exec";
 
 export default function Home(){
  const [cat,setCat]=useState("Tất cả"),[cart,setCart]=useState<Record<number,number>>({}),[open,setOpen]=useState(false),[checkout,setCheckout]=useState(false),[success,setSuccess]=useState(false),[pay,setPay]=useState("cod");
  const [selected,setSelected]=useState<number|null>(null),[size,setSize]=useState("M"),[sugar,setSugar]=useState("50%"),[ice,setIce]=useState("Vừa"),[added,setAdded]=useState<number|null>(null),[fly,setFly]=useState<number|null>(null),[toast,setToast]=useState("");
  const [toppings,setToppings]=useState<string[]>([]),[prefs,setPrefs]=useState<Record<number,{size:string,sugar:string,ice:string,toppings:string[]}>>({});
+ const [submitting,setSubmitting]=useState(false),[orderError,setOrderError]=useState(""),[orderId,setOrderId]=useState("");
  const shown=cat==="Tất cả"?products:products.filter(p=>p.cat===cat), count=Object.values(cart).reduce((a,b)=>a+b,0);
  const itemPrice=(id:number,base:number)=>base+(prefs[id]?.size==="L"?8000:0)+(prefs[id]?.toppings||[]).reduce((sum,t)=>sum+toppingPrices[t],0);
  const subtotal=useMemo(()=>products.reduce((s,p)=>s+itemPrice(p.id,p.price)*(cart[p.id]||0),0),[cart,prefs]),shipping=subtotal&&subtotal<150000?15000:0;
@@ -27,6 +29,29 @@ export default function Home(){
  const toggleTopping=(name:string)=>setToppings(t=>t.includes(name)?t.filter(x=>x!==name):[...t,name]);
  const selectedProduct=products.find(p=>p.id===selected);
  const freeLeft=Math.max(0,150000-subtotal),progress=Math.min(100,(subtotal/150000)*100);
+ const submitOrder=async(e:React.FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();
+  if(submitting)return;
+  const form=new FormData(e.currentTarget);
+  setSubmitting(true);setOrderError("");
+  const items=products.filter(p=>cart[p.id]).map(p=>({
+   name:p.name,quantity:cart[p.id],unitPrice:itemPrice(p.id,p.price),
+   size:prefs[p.id]?.size||"M",sugar:prefs[p.id]?.sugar||"50%",
+   ice:prefs[p.id]?.ice||"Vừa",toppings:prefs[p.id]?.toppings||[]
+  }));
+  const payload={
+   customer:{name:String(form.get("customerName")||""),phone:String(form.get("phone")||""),address:String(form.get("address")||""),note:String(form.get("note")||"")},
+   items,subtotal,shipping,total:subtotal+shipping,payment:pay
+  };
+  try{
+   const response=await fetch(ORDER_API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+   const result=await response.json();
+   if(!response.ok||!result.success)throw new Error(result.message||"Không thể lưu đơn hàng");
+   setOrderId(result.orderId||"");setSuccess(true);
+  }catch{
+   setOrderError("Không thể gửi đơn hàng. Vui lòng thử lại hoặc gọi hotline 090 123 4567.");
+  }finally{setSubmitting(false)}
+ };
  return <main>
   <header className="nav shell"><a className="brand" href="#top"><span>o</span>lala</a><nav><a href="#menu">Thực đơn</a><a href="#story">Về OLALA</a><a href="#contact">Liên hệ</a></nav><button className="cartBtn" onClick={()=>setOpen(true)}>Giỏ hàng <b>{count}</b></button></header>
   <section className="hero shell" id="top"><div><div className="eyebrow">TƯƠI MỖI NGÀY · GIAO NHANH 30 PHÚT</div><h1>Một ngụm tươi,<br/><em>cả ngày vui.</em></h1><p>Trà thơm, cà phê đậm vị và nước ép nguyên chất — được pha mới ngay khi bạn đặt.</p><div className="heroActions"><a href="#menu" className="primary">Khám phá thực đơn →</a><span>★ 4.9 <small>từ hơn 1.200 khách hàng</small></span></div></div><div className="heroArt realHero"><div className="sun"/><img src="/olala-website/images/tea-duo.png" alt="Trà trái cây tươi OLALA"/><div className="heroBubble b1">100% trái cây thật</div><div className="heroBubble b2">Pha mới mỗi ngày</div><i className="fruit f1">🍊</i><i className="fruit f2">🍃</i></div></section>
@@ -41,8 +66,8 @@ export default function Home(){
   {toast&&<div className="toast"><b>✓</b><span>{toast}<small>Đã cập nhật giỏ hàng</small></span><button onClick={()=>setToast("")}>×</button></div>}
   {open&&<div className="overlay" onMouseDown={()=>setOpen(false)}><aside className="drawer" onMouseDown={e=>e.stopPropagation()}><button className="close" onClick={()=>setOpen(false)}>×</button>
    {!checkout&&!success&&<><h2>Giỏ hàng của bạn</h2>{count===0?<div className="empty">🧃<p>Giỏ hàng đang trống</p><button onClick={()=>setOpen(false)}>Chọn đồ uống</button></div>:<><div className="drawerProgress"><div><span style={{width:`${progress}%`}}/></div><p>{freeLeft?<>Thêm <b>{money(freeLeft)}</b> để được miễn phí giao hàng</>:<>🎉 Đơn hàng được miễn phí giao hàng</>}</p></div><div>{products.filter(p=>cart[p.id]).map(p=><div className="cartItem" key={p.id}><span>{p.icon}</span><div><b>{p.name}</b><small>{prefs[p.id]?`${prefs[p.id].size} · ${prefs[p.id].sugar} đường · đá ${prefs[p.id].ice}`:"Size M · 50% đường · đá vừa"}</small>{prefs[p.id]?.toppings.length>0&&<small>+ {prefs[p.id].toppings.join(", ")}</small>}<small>{money(itemPrice(p.id,p.price))}</small></div><div className="qty"><button onClick={()=>change(p.id,-1)}>−</button>{cart[p.id]}<button onClick={()=>add(p.id)}>+</button></div></div>)}</div><div className="summary"><p>Tạm tính <b>{money(subtotal)}</b></p><p>Phí giao hàng <b>{shipping?money(shipping):"Miễn phí"}</b></p><p className="total">Tổng cộng <b>{money(subtotal+shipping)}</b></p></div><button className="checkout" onClick={()=>setCheckout(true)}>Tiến hành đặt hàng</button></>}</>}
-   {checkout&&!success&&<form onSubmit={e=>{e.preventDefault();setSuccess(true)}}><button type="button" className="back" onClick={()=>setCheckout(false)}>← Quay lại giỏ hàng</button><h2>Thông tin giao hàng</h2><label>Họ và tên<input required placeholder="Nguyễn Văn An"/></label><label>Số điện thoại<input required type="tel" placeholder="09xx xxx xxx"/></label><label>Địa chỉ giao hàng<textarea required placeholder="Số nhà, đường, phường/xã, quận/huyện"/></label><label>Ghi chú<textarea placeholder="Ít đá, giao tại lễ tân..."/></label><h3>Thanh toán</h3><label className={`payment ${pay==="cod"?"selected":""}`}><input type="radio" name="pay" checked={pay==="cod"} onChange={()=>setPay("cod")}/>💵 Thanh toán khi nhận hàng</label><label className={`payment ${pay==="online"?"selected":""}`}><input type="radio" name="pay" checked={pay==="online"} onChange={()=>setPay("online")}/>💳 Thanh toán trực tuyến</label>{pay==="online"&&<div className="note">Cổng thanh toán sẽ mở sau khi xác nhận đơn.</div>}<button className="checkout" type="submit">Đặt hàng · {money(subtotal+shipping)}</button></form>}
-   {success&&<div className="success"><div>✓</div><h2>Đặt hàng thành công!</h2><p>OLALA đã nhận đơn và sẽ liên hệ xác nhận trong ít phút.</p><button onClick={()=>{setCart({});setSuccess(false);setCheckout(false);setOpen(false)}}>Tiếp tục mua hàng</button></div>}
+   {checkout&&!success&&<form onSubmit={submitOrder}><button type="button" className="back" onClick={()=>setCheckout(false)}>← Quay lại giỏ hàng</button><h2>Thông tin giao hàng</h2><label>Họ và tên<input name="customerName" required placeholder="Nguyễn Văn An"/></label><label>Số điện thoại<input name="phone" required type="tel" placeholder="09xx xxx xxx"/></label><label>Địa chỉ giao hàng<textarea name="address" required placeholder="Số nhà, đường, phường/xã, quận/huyện"/></label><label>Ghi chú<textarea name="note" placeholder="Ít đá, giao tại lễ tân..."/></label><h3>Thanh toán</h3><label className={`payment ${pay==="cod"?"selected":""}`}><input type="radio" name="pay" checked={pay==="cod"} onChange={()=>setPay("cod")}/>💵 Thanh toán khi nhận hàng</label><label className={`payment ${pay==="online"?"selected":""}`}><input type="radio" name="pay" checked={pay==="online"} onChange={()=>setPay("online")}/>💳 Thanh toán trực tuyến</label>{pay==="online"&&<div className="note">Cổng thanh toán sẽ mở sau khi xác nhận đơn.</div>}{orderError&&<div className="note">{orderError}</div>}<button className="checkout" type="submit" disabled={submitting}>{submitting?"Đang gửi đơn...":`Đặt hàng · ${money(subtotal+shipping)}`}</button></form>}
+   {success&&<div className="success"><div>✓</div><h2>Đặt hàng thành công!</h2><p>OLALA đã nhận đơn và sẽ liên hệ xác nhận trong ít phút.</p>{orderId&&<p><b>Mã đơn: {orderId}</b></p>}<button onClick={()=>{setCart({});setOrderId("");setSuccess(false);setCheckout(false);setOpen(false)}}>Tiếp tục mua hàng</button></div>}
   </aside></div>}
   {selectedProduct&&<div className="overlay detailOverlay" onMouseDown={()=>setSelected(null)}><section className="detailModal" onMouseDown={e=>e.stopPropagation()}><button className="close" onClick={()=>setSelected(null)}>×</button><div className={`detailPhoto ${selectedProduct.tone}`}><img className={`duo ${selectedProduct.side}`} src={selectedProduct.image} alt={selectedProduct.name}/><div className="liveChoice">Size {size}<br/>{sugar} đường · đá {ice.toLowerCase()}</div></div><div className="detailBody"><span className="eyebrow">TÙY CHỈNH MÓN</span><h2>{selectedProduct.name}</h2><p>{selectedProduct.desc}</p><Option title="Chọn size" values={["M","L +8.000đ"]} current={size==="L"?"L +8.000đ":"M"} onPick={v=>setSize(v.startsWith("L")?"L":"M")}/><Option title="Lượng đường" values={["0%","30%","50%","100%"]} current={sugar} onPick={setSugar}/><Option title="Lượng đá" values={["Ít","Vừa","Nhiều"]} current={ice} onPick={setIce}/><div className="optionGroup"><b>Thêm topping</b><div>{Object.entries(toppingPrices).map(([name,price])=><button key={name} className={toppings.includes(name)?"selected":""} onClick={()=>toggleTopping(name)}>{toppings.includes(name)?"✓ ":""}{name} +{money(price)}</button>)}</div></div><button className="checkout addCustomized" onClick={saveChoice}>Thêm vào giỏ · {money(selectedProduct.price+(size==="L"?8000:0)+toppings.reduce((sum,t)=>sum+toppingPrices[t],0))}</button></div></section></div>}
  </main>
