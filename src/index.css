@@ -58,3 +58,18 @@ button,input,textarea,select{font:inherit}
 .hero h1 em,.reviewTrack p,.storyArt span{
  font-family:Georgia,"Times New Roman",serif;
 }
+
+
+/* Voucher checkout */
+.voucherBox{margin:24px 0;padding:18px;border:1px dashed #9cad76;border-radius:18px;background:#f5f8e9}
+.voucherBox h3{margin:0 0 12px;font-size:17px}
+.voucherInput{display:grid;grid-template-columns:1fr auto;gap:9px}
+.voucherInput input{margin:0;text-transform:uppercase;letter-spacing:1px;font-weight:800}
+.voucherInput button{border:0;border-radius:12px;padding:0 18px;background:var(--ink);color:white;font-weight:800;cursor:pointer;white-space:nowrap}
+.voucherInput button:disabled{opacity:.55;cursor:wait}
+.voucherOk,.voucherError{font-size:12px!important;margin:10px 2px 0!important}
+.voucherOk{color:#28723f!important;font-weight:800}
+.voucherError{color:#b04432!important}
+.discountRow{color:#28723f!important}
+.discountRow b{color:#28723f}
+@media(max-width:420px){.voucherInput{grid-template-columns:1fr}.voucherInput button{height:43px}}
