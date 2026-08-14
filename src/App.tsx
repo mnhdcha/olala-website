@@ -44,10 +44,8 @@ export default function Home(){
    items,subtotal,shipping,total:subtotal+shipping,payment:pay
   };
   try{
-   const response=await fetch(ORDER_API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
-   const result=await response.json();
-   if(!response.ok||!result.success)throw new Error(result.message||"Không thể lưu đơn hàng");
-   setOrderId(result.orderId||"");setSuccess(true);
+   await fetch(ORDER_API,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+   setOrderId("");setSuccess(true);
   }catch{
    setOrderError("Không thể gửi đơn hàng. Vui lòng thử lại hoặc gọi hotline 090 123 4567.");
   }finally{setSubmitting(false)}
